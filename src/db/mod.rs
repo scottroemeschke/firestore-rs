@@ -68,7 +68,7 @@ pub use transaction_models::*;
 
 /// Internal module for transaction operations.
 mod transaction_ops;
-use transaction_ops::*;
+pub(crate) use transaction_ops::*;
 
 /// Module for session-specific parameters (e.g., consistency, caching).
 mod session_params;

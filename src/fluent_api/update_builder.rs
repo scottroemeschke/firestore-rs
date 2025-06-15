@@ -4,12 +4,14 @@
 //! the data to update (either a full object, specific fields, or field transformations),
 //! and optional preconditions.
 
+use crate::db::UpdateObjectOperation;
 use crate::document_transform_builder::FirestoreTransformBuilder;
+use crate::errors::FirestoreError;
 use crate::{
-    FirestoreBatch, FirestoreBatchWriter, FirestoreFieldTransform, FirestoreResult,
+    FirestoreBatch, FirestoreBatchWriter, FirestoreDb, FirestoreFieldTransform, FirestoreResult,
     FirestoreTransaction, FirestoreUpdateSupport, FirestoreWritePrecondition,
 };
-use gcloud_sdk::google::firestore::v1::Document;
+use gcloud_sdk::google::firestore::v1::{Document, Write};
 use serde::{Deserialize, Serialize};
 
 /// The initial builder for a Firestore update operation.
@@ -718,5 +720,46 @@ where
                 self.transforms,
             )
         }
+    }
+}
+
+impl<'a, T> FirestoreUpdateObjExecuteBuilder<'a, FirestoreDb, T>
+where
+    T: Serialize + Sync + Send,
+{
+    #[inline]
+    fn into_update_operation(self) -> UpdateObjectOperation<'a, T, String> {
+        if let Some(parent) = self.parent {
+            UpdateObjectOperation {
+                parent,
+                collection_id: self.collection_id,
+                document_id: self.document_id,
+                obj: self.object,
+                update_only: self.update_only_fields,
+                precondition: self.precondition,
+                update_transforms: self.transforms,
+            }
+        } else {
+            UpdateObjectOperation {
+                parent: self.db.get_documents_path().to_string(),
+                collection_id: self.collection_id,
+                document_id: self.document_id,
+                obj: self.object,
+                update_only: self.update_only_fields,
+                precondition: self.precondition,
+                update_transforms: self.transforms,
+            }
+        }
+    }
+}
+
+impl<'a, T> TryInto<Write> for FirestoreUpdateObjExecuteBuilder<'a, FirestoreDb, T>
+where
+    T: Serialize + Sync + Send,
+{
+    type Error = FirestoreError;
+
+    fn try_into(self) -> Result<Write, Self::Error> {
+        self.into_update_operation().try_into()
     }
 }

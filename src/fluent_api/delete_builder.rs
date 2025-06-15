@@ -4,10 +4,13 @@
 //! optionally including a parent path for sub-collections and preconditions
 //! for the delete operation.
 
+use crate::db::DeleteOperation;
+use crate::errors::FirestoreError;
 use crate::{
-    FirestoreBatch, FirestoreBatchWriter, FirestoreDeleteSupport, FirestoreResult,
+    FirestoreBatch, FirestoreBatchWriter, FirestoreDb, FirestoreDeleteSupport, FirestoreResult,
     FirestoreTransaction, FirestoreWritePrecondition,
 };
+use gcloud_sdk::google::firestore::v1::Write;
 
 /// The initial builder for a Firestore delete operation.
 ///
@@ -270,5 +273,34 @@ where
                 self.precondition,
             )
         }
+    }
+}
+
+impl<'a> FirestoreDeleteExecuteBuilder<'a, FirestoreDb> {
+    #[inline]
+    fn into_delete_operation(self) -> DeleteOperation<String> {
+        if let Some(parent) = self.parent {
+            DeleteOperation {
+                parent,
+                collection_id: self.collection_id,
+                document_id: self.document_id,
+                precondition: self.precondition,
+            }
+        } else {
+            DeleteOperation {
+                parent: self.db.get_documents_path().to_string(),
+                collection_id: self.collection_id,
+                document_id: self.document_id,
+                precondition: self.precondition,
+            }
+        }
+    }
+}
+
+impl<'a> TryInto<Write> for FirestoreDeleteExecuteBuilder<'a, FirestoreDb> {
+    type Error = FirestoreError;
+
+    fn try_into(self) -> Result<Write, Self::Error> {
+        self.into_delete_operation().try_into()
     }
 }

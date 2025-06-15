@@ -333,3 +333,13 @@ impl FirestoreDb {
         retry_result
     }
 }
+
+impl<'a> FirestoreTransaction<'a> {
+    pub fn set_writes(&mut self, writes: Vec<gcloud_sdk::google::firestore::v1::Write>) {
+        self.writes = writes;
+    }
+
+    pub fn add_write(&mut self, write: gcloud_sdk::google::firestore::v1::Write) {
+        self.writes.push(write);
+    }
+}
